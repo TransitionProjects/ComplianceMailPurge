@@ -11,10 +11,12 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 #Check for the ExchangeOnlineManagement module. If not installed, install it
 if(-not (Get-Module ExchangeOnlineManagement)) {
+    Write-Host "Installing ExchangeOnlineManagement Module..." -ForegroundColor Green
     Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
 }
 
 #import the module for use
+Write-Host "Importing ExchangeOnlineManagement Module..." -ForegroundColor Green
 Import-Module ExchangeOnlineManagement
 
 #intialize variables
@@ -33,14 +35,14 @@ $queryActionName = $null
 function Disconnect-AndStartNew {
     Disconnect-ExchangeOnline -confirm:$false
     Write-Host "Sign in with a profile that has Exchange Admin/Compliance & Security Role Access" -ForegroundColor Green
-    Connect-IPPSSession
+    Connect-IPPSSession -ShowBanner:$false
     Invoke-MainMenu
 }
 
 #[2] - Create a new session without disconnecting existing ones
 function Connect-ESOOvertop {
     Write-Host "Sign in with a profile that has Exchange Admin/Compliance & Security Role Access" -ForegroundColor Green
-    Connect-IPPSSession
+    Connect-IPPSSession -ShowBanner:$false
     Invoke-MainMenu
 }
 
@@ -61,7 +63,8 @@ function Exit-Dirty {
 function Connect-Session {
     Clear-Host
     if (-not (Get-ConnectionInformation)) {
-        Connect-IPPSSession
+        Write-Host "Sign in with a profile that has Exchange Admin/Compliance & Security Role Access" -ForegroundColor Green
+        Connect-IPPSSession -ShowBanner:$false
         Invoke-MainMenu
     } else {
         Clear-Host
@@ -204,9 +207,35 @@ function Select-NewQuery {
     Invoke-MainMenu
 }
 
+#[7] - Get Item count of selected Query
+function Get-QueryItemCount {
+    $queryCount = Get-ComplianceSearch -Identity $queryName | Format-List Items | Out-String
+    Write-Host $queryCount -ForegroundColor Green
+    Pause
+    Invoke-MainMenu
+}
+
+#[8] - Get SuccessResults of selected Query
+function Get-QuerySuccessResults {
+    #Load horrible search results object into a variable
+    $complianceSearch = Get-ComplianceSearch -Identity $queryName
+    $queryResults = $complianceSearch.SuccessResults
+
+    #Split results object into a usable array, because "successresults" is an insane property
+    $resultArray = $queryResults.Split([Environment]::NewLine,
+                                       [System.StringSplitOptions]::RemoveEmptyEntries) | 
+                                       Where-Object {$_ -notlike "*Item count: 0*"}
+
+    #Make it readable, every location on a new line, display, pause for user input
+    $resultArray | ForEach-Object {
+        Write-Host $_ -ForegroundColor Green
+    }
+    Pause
+    Invoke-MainMenu
+}
+
 #[Q] - Clear constructed query and exit
 function Reset-Shell {
-    Reset-Query
     Disconnect-ExchangeOnline -Confirm:$false
     Clear-Host
     Exit
@@ -215,18 +244,20 @@ function Reset-Shell {
 #Main Menu
 function Invoke-MainMenu {
     Clear-Host
-    Write-Host "This script is for quick & dirty, organization-wide removals of malicious e-mails & spam. It does not provide the full featureset of the ComplianceSearch cmdlets. If you are trying to build a complex query, you are likely better off using the cmdlets manually. Documentation for each cmdlet can be found at this link: https://learn.microsoft.com/en-us/powershell/module/exchange/?view=exchange-ps#policy-and-compliance-content-search" -ForegroundColor Red
+    Write-Host "This script is for quick & dirty removals of malicious e-mails & spam. It does not provide the full featureset of the ComplianceSearch cmdlets. If you are trying to build a complex query, you are likely better off using the cmdlets manually. Documentation for each cmdlet can be found at this link: https://learn.microsoft.com/en-us/powershell/module/exchange/?view=exchange-ps#policy-and-compliance-content-search" -ForegroundColor Red
     Write-Host "[.............Exchange Search & Purge.............]" -ForegroundColor Green
-    Write-Host "[1] Construct a search query" -ForegroundColor Yellow
-    Write-Host "[2] Modify the current query" -ForegroundColor Yellow
+    Write-Host "[1] Construct a search Query" -ForegroundColor Yellow
+    Write-Host "[2] Modify the current Query" -ForegroundColor Yellow
     Write-Host "[3] Run search with constructed query and show itemized results" -ForegroundColor Yellow
-    Write-Host "[4] Purge all items found with constructed query" -ForegroundColor Yellow
-    Write-Host "[5] Clear & Remove constructed query" -ForegroundColor Yellow
-    Write-Host "[6] Select an existing query or change selection to a different existing query" -ForegroundColor Yellow
+    Write-Host "[4] Purge all items found with constructed Query" -ForegroundColor Yellow
+    Write-Host "[5] Clear & Remove constructed Query" -ForegroundColor Yellow
+    Write-Host "[6] Select an existing query or change selection to a different existing Query" -ForegroundColor Yellow
+    Write-Host "[7] Display a count of items found with selected Query" -ForegroundColor Yellow
+    Write-Host "[8] Display 'SuccessResults' property of selected Query" -ForegroundColor Yellow
     Write-Host "[Q] Exit" -ForegroundColor Yellow
 
     if ($queryName) {
-        Write-Host "Current Query Name: $queryName" -ForegroundColor Green
+        Write-Host "Selected Query Name: $queryName" -ForegroundColor Green
     }
     
     $mainMenuInput = Read-Host -Prompt "Enter a menu option to continue"
@@ -243,6 +274,10 @@ function Invoke-MainMenu {
         Reset-Query
     } elseif ($mainMenuInput -eq "6") {
         Select-NewQuery
+    } elseif ($mainMenuInput -eq "7") {
+        Get-QueryItemCount
+    } elseif ($mainMenuInput -eq "8") {
+        Get-QuerySuccessResults
     } elseif ($mainMenuInput -eq "Q") {
         Reset-Shell
     } else {
