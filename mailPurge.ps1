@@ -10,7 +10,7 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 #Check for the ExchangeOnlineManagement module. If not installed, install it
-if(-not (Get-Module ExchangeOnlineManagement)) {
+if(-not (Get-InstalledModule ExchangeOnlineManagement)) {
     Write-Host "Installing ExchangeOnlineManagement Module..." -ForegroundColor Green
     Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
 }
@@ -77,16 +77,12 @@ function Connect-Session {
 
         $sessionMenuInput = Read-Host -Prompt "Enter a menu option to continue"
 
-        if ($sessionMenuInput -eq "1") {
-            Disconnect-AndStartNew
-        } elseif ($sessionMenuInput -eq "2") {
-            Connect-ESOOvertop
-        } elseif ($sessionMenuInput -eq "3") {
-            Exit-Clean
-        } elseif ($sessionMenuInput -eq "4") {
-            Exit-Dirty
-        } else {
-            $sessionMenuInput = Read-Host -Prompt "Invalid Input. Enter a menu option to continue" 
+        switch ($sessionMenuInput) {
+            1 {Disconnect-AndStartNew}
+            2 {Connect-ESOOvertop}
+            3 {Exit-Clean}
+            4 {Exit-Dirty}
+            Default {$sessionMenuInput = Read-Host -Prompt "Invalid Input. Enter a menu option to continue"}
         }
     }
 }
@@ -100,7 +96,7 @@ function Set-Query {
     $queryName = Read-Host -Prompt "Give your query a name"
     $query = Read-Host -Prompt "Enter your query. Examples can be found at https://learn.microsoft.com/en-us/powershell/module/exchange/new-compliancesearch?view=exchange-ps"
     New-ComplianceSearch -Name $queryName -ExchangeLocation "All" -ContentMatchQuery $query
-    Write-Host "Query set to: " + $query
+    Write-Host "Query set to: " $query
     Pause
     Invoke-MainMenu
 }
@@ -151,22 +147,18 @@ function Test-Query {
 #[4] - Purge all items found with constructed query
 function Push-Purge {
     Clear-Host
-    Write-Host "Push Purge!" -ForegroundColor Blue
     Write-Host "[.............Exchange Search & Purge.............]" -ForegroundColor Green
     Write-Host "[1] Hard Delete (removes from Exchange)"
     Write-Host "[2] Soft Delete (removes from User Inbox)"
-    Write-Host "[Q] Cancel"
+    Write-Host "[Q] Cancel and return to main menu"
 
     $purgeTypeMenuInput = Read-Host -Prompt "Choose a PurgeType to continue" 
 
-    if ($purgeTypeMenuInput -eq "1") {
-        New-ComplianceSearchAction -SearchName $queryName -Purge -PurgeType HardDelete
-    } elseif ($purgeTypeMenuInput -eq "2") {
-        New-ComplianceSearchAction -SearchName $queryName -Purge -PurgeType SoftDelete
-    } elseif ($purgeTypeMenuInput -eq "Q") {
-        Invoke-MainMenu
-    } else {
-        $purgeTypeMenuInput = Read-Host -Prompt "Invalid Input. Enter a menu option to continue" 
+    switch ($purgeTypeMenuInput) {
+        1 {New-ComplianceSearchAction -SearchName $queryName -Purge -PurgeType HardDelete}
+        2 {New-ComplianceSearchAction -SearchName $queryName -Purge -PurgeType SoftDelete}
+        Q {Invoke-MainMenu}
+        Default {$purgeTypeMenuInput = Read-Host -Prompt "Invalid Input. Enter a menu option to continue" }
     }
 
     $queryActionName = $queryName + "_Purge"
@@ -262,26 +254,17 @@ function Invoke-MainMenu {
     
     $mainMenuInput = Read-Host -Prompt "Enter a menu option to continue"
 
-    if ($mainMenuInput -eq "1") {
-        Set-Query
-    } elseif ($mainMenuInput -eq "2") {
-        Repair-Query
-    } elseif ($mainMenuInput -eq "3") {
-        Test-Query
-    } elseif ($mainMenuInput -eq "4") {
-        Push-Purge
-    } elseif ($mainMenuInput -eq "5") {
-        Reset-Query
-    } elseif ($mainMenuInput -eq "6") {
-        Select-NewQuery
-    } elseif ($mainMenuInput -eq "7") {
-        Get-QueryItemCount
-    } elseif ($mainMenuInput -eq "8") {
-        Get-QuerySuccessResults
-    } elseif ($mainMenuInput -eq "Q") {
-        Reset-Shell
-    } else {
-        $mainMenuInput = Read-Host -Prompt "Invalid Input. Enter a menu option to continue" 
+    switch ($mainMenuInput) {
+        1 {Set-Query}
+        2 {Repair-Query}
+        3 {Test-Query}
+        4 {Push-Purge}
+        5 {Reset-Query}
+        6 {Select-NewQuery}
+        7 {Get-QueryItemCount}
+        8 {Get-QuerySuccessResults}
+        Q {Reset-Shell}
+        Default {$mainMenuInput = Read-Host -Prompt "Invalid Input. Enter a menu option to continue" }
     }
     Invoke-MainMenu
 }
